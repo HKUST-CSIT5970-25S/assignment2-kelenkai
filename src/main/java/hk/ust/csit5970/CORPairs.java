@@ -46,13 +46,26 @@ public class CORPairs extends Configured implements Tool {
 		@Override
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
-			HashMap<String, Integer> word_set = new HashMap<String, Integer>();
+			HashMap<String, Integer> word_set = new HashMap<String, Integer>(); // Fixed line
 			// Please use this tokenizer! DO NOT implement a tokenizer by yourself!
 			String clean_doc = value.toString().replaceAll("[^a-z A-Z]", " ");
 			StringTokenizer doc_tokenizer = new StringTokenizer(clean_doc);
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			while (doc_tokenizer.hasMoreTokens()) {
+                String token = doc_tokenizer.nextToken().trim();
+                if (!token.isEmpty()) {
+                    Integer count = word_set.get(token);
+					if (count == null) {
+						count = 0;
+					}
+					word_set.put(token, count + 1);
+                }
+            }
+            for (Map.Entry<String, Integer> entry : word_set.entrySet()) {
+                context.write(new Text(entry.getKey()), new IntWritable(entry.getValue()));
+            }
 		}
 	}
 
@@ -66,6 +79,11 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+            for (IntWritable val : values) {
+                sum += val.get();
+            }
+            context.write(key, new IntWritable(sum));
 		}
 	}
 
@@ -81,6 +99,30 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			// HashMap<String, Integer> uniqueWords = new HashMap<String, Integer>();
+            // while (doc_tokenizer.hasMoreTokens()) {
+            //     String token = doc_tokenizer.nextToken().trim();
+            //     if (!token.isEmpty()) {
+            //         uniqueWords.add(token);
+            //     }
+            // }
+			Set<String> uniqueWords = new HashSet<String>();
+			while (doc_tokenizer.hasMoreTokens()) {
+				String token = doc_tokenizer.nextToken().trim().toLowerCase();
+				if (!token.isEmpty()) {
+					uniqueWords.add(token);
+				}
+			}
+            // List<String> words = new ArrayList<>(uniqueWords);
+			List<String> words = new ArrayList<String>(uniqueWords);
+            Collections.sort(words);
+            for (int i = 0; i < words.size(); i++) {
+                for (int j = i + 1; j < words.size(); j++) {
+                    String wordA = words.get(i);
+                    String wordB = words.get(j);
+                    context.write(new PairOfStrings(wordA, wordB), new IntWritable(1));
+                }
+            }
 		}
 	}
 
@@ -93,6 +135,11 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+            for (IntWritable val : values) {
+                sum += val.get();
+            }
+            context.write(key, new IntWritable(sum));
 		}
 	}
 
@@ -145,6 +192,20 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+            for (IntWritable val : values) {
+                sum += val.get();
+            }
+            String wordA = key.getLeftElement();
+            String wordB = key.getRightElement();
+            Integer freqA = word_total_map.get(wordA);
+            Integer freqB = word_total_map.get(wordB);
+            if (freqA == null || freqB == null) {
+                LOG.error("Missing frequency for word: " + (freqA == null ? wordA : wordB));
+                return;
+            }
+            double cor = (double) sum / (freqA * freqB);
+            context.write(key, new DoubleWritable(cor));
 		}
 	}
 
